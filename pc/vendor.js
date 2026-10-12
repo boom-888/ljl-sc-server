@@ -29,6 +29,7 @@
       const loading = ref(false);
       const activeTab = ref('all'); // all / on_sale / out_of_stock
       const stockDialog = reactive({ show: false, id: null, name: '', delta: 10, stock: null, mode: 'delta' });
+      const addDialog = reactive({ show: false, form: { name: '', price: '', stock: 0, categoryId: null, detail: '', status: 1 } });
 
       const filtered = computed(() => {
         if (activeTab.value === 'on_sale') return list.value.filter(x => x.status === 'on_sale' || x.status === 1);
@@ -69,7 +70,27 @@
         } catch {}
       }
 
-      return { list, loading, activeTab, filtered, statusMap, stockDialog, load, openStock, submitStock };
+      function openAdd() {
+        addDialog.form = { name: '', price: '', stock: 10, categoryId: null, detail: '', status: 1 };
+        addDialog.show = true;
+      }
+
+      async function submitAdd() {
+        const f = addDialog.form;
+        if (!f.name.trim()) { window.__toast('warning', '商品名称必填'); return; }
+        if (f.price === '' || Number(f.price) < 0) { window.__toast('warning', '价格无效'); return; }
+        try {
+          await window.__api.post('/vendor/products', {
+            name: f.name.trim(), price: Number(f.price), stock: Number(f.stock || 0),
+            categoryId: f.categoryId, detail: f.detail, status: f.status === 1 ? 'on' : 'off',
+          });
+          window.__toast('success', '商品已创建');
+          addDialog.show = false;
+          await load();
+        } catch {}
+      }
+
+      return { list, loading, activeTab, filtered, statusMap, stockDialog, addDialog, load, openStock, submitStock, openAdd, submitAdd };
     },
     mounted() { this.load(); },
     template: `
@@ -82,7 +103,8 @@
             <el-radio-button label="out_of_stock">缺货</el-radio-button>
           </el-radio-group>
           <div style="flex:1"></div>
-          <el-button type="primary" size="small" @click="load" :loading="loading">刷新</el-button>
+          <el-button type="primary" size="small" @click="openAdd">+ 新增商品</el-button>
+          <el-button size="small" @click="load" :loading="loading">刷新</el-button>
         </div>
         <el-table :data="filtered" v-loading="loading" stripe size="small">
           <el-table-column prop="id" label="ID" width="70" />
@@ -130,6 +152,31 @@
         <template #footer>
           <el-button @click="stockDialog.show = false">取消</el-button>
           <el-button type="primary" @click="submitStock">确认</el-button>
+        </template>
+      </el-dialog>
+
+      <el-dialog v-model="addDialog.show" title="新增商品" width="520px">
+        <el-form label-width="90px">
+          <el-form-item label="商品名称"><el-input v-model="addDialog.form.name" placeholder="必填" /></el-form-item>
+          <el-form-item label="价格">
+            <el-input-number v-model="addDialog.form.price" :min="0" :precision="2" :step="10" style="width:180px" />
+          </el-form-item>
+          <el-form-item label="库存">
+            <el-input-number v-model="addDialog.form.stock" :min="0" :step="10" style="width:180px" />
+          </el-form-item>
+          <el-form-item label="分类ID">
+            <el-input-number v-model="addDialog.form.categoryId" :min="1" placeholder="选填" style="width:180px" />
+          </el-form-item>
+          <el-form-item label="状态">
+            <el-switch v-model="addDialog.form.status" :active-value="1" :inactive-value="0" active-text="在售" inactive-text="已下架" />
+          </el-form-item>
+          <el-form-item label="商品详情">
+            <el-input v-model="addDialog.form.detail" type="textarea" :rows="2" placeholder="选填" />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="addDialog.show = false">取消</el-button>
+          <el-button type="primary" @click="submitAdd">创建</el-button>
         </template>
       </el-dialog>
     `,
