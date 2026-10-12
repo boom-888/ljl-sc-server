@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>零距离 · 四端订单交互全链路</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;background:#f0f2f5;color:#1f2328;padding:28px 20px 40px;line-height:1.55}
+h1{font-size:24px;margin-bottom:4px}
+h1 .sub{font-size:13px;color:#656d76;font-weight:400;margin-left:10px}
+.page-card{background:#fff;border:1px solid #d0d7de;border-radius:12px;overflow:hidden;margin-bottom:28px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.page-head{padding:14px 20px;background:#f6f8fa;border-bottom:1px solid #d0d7de;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.page-head .desc{font-size:11px;color:#656d76;font-weight:400}
+.legend{padding:12px 20px;background:#fff;border-bottom:1px solid #d0d7de;font-size:12px;color:#656d76;display:flex;flex-wrap:wrap;gap:14px}
+.legend .lg{display:inline-flex;align-items:center;gap:6px}
+.legend .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.legend .rect{width:16px;height:10px;border-radius:3px;flex-shrink:0}
+svg{display:block;width:100%;height:auto;background:#fff}
+
+/* ---------- 角色职责分工表 ---------- */
+.tbl-wrap{padding:16px 20px}
+table.tbl{width:100%;border-collapse:collapse;font-size:13px}
+table.tbl th,table.tbl td{padding:10px 14px;text-align:left;border-bottom:1px solid #eaeef2}
+table.tbl th{background:#f6f8fa;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+table.tbl tr:last-child td{border-bottom:none}
+.role-chip{display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600}
+.rc-consumer{background:rgba(9,105,218,.1);color:#0969da;border:1px solid rgba(9,105,218,.25)}
+.rc-vendor{background:rgba(191,135,0,.1);color:#bf8700;border:1px solid rgba(191,135,0,.25)}
+.rc-designer{background:rgba(130,80,223,.1);color:#8250df;border:1px solid rgba(130,80,223,.25)}
+.rc-installer{background:rgba(26,127,55,.1);color:#1a7f37;border:1px solid rgba(26,127,55,.25)}
+.rc-admin{background:rgba(207,34,46,.1);color:#cf222e;border:1px solid rgba(207,34,46,.25)}
+.api-path{font-family:"SF Mono","Cascadia Code",monospace;font-size:11px;background:#f6f8fa;border:1px solid #d0d7de;padding:1px 6px;border-radius:3px;color:#1f2328;white-space:nowrap}
+.api-tag{display:inline-block;padding:0 6px;border-radius:3px;font-size:10px;margin-right:4px;border:1px solid #d0d7de;background:#f6f8fa}
+.api-tag.get{color:#1a7f37;background:rgba(26,127,55,.08);border-color:rgba(26,127,55,.25)}
+.api-tag.post{color:#0969da;background:rgba(9,105,218,.08);border-color:rgba(9,105,218,.25)}
+.api-tag.patch{color:#bf8700;background:rgba(191,135,0,.08);border-color:rgba(191,135,0,.25)}
+
+/* ---------- 通知机制 ---------- */
+.notif-row{display:grid;grid-template-columns:120px 1fr 1.4fr;gap:0;font-size:13px;border-bottom:1px solid #eaeef2}
+.notif-row:last-child{border-bottom:none}
+.notif-row > div{padding:10px 14px}
+.notif-row .n-trigger{font-weight:600}
+.notif-row .n-receive{color:#656d76}
+.notif-row .n-way{font-family:"SF Mono",monospace;font-size:11px;color:#1f2328}
+
+/* ---------- admin 介入场景 ---------- */
+.admin-alert-row{display:grid;grid-template-columns:180px 120px 1fr;gap:0;font-size:13px;border-bottom:1px solid #eaeef2}
+.admin-alert-row:last-child{border-bottom:none}
+.admin-alert-row > div{padding:10px 14px}
+.admin-alert-row .a-scenario{font-weight:600;color:#cf222e}
+.admin-alert-row .a-rule{font-family:"SF Mono",monospace;font-size:11px;color:#656d76}
+.admin-alert-row .a-action{color:#1f2328}
+.danger-tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;background:rgba(207,34,46,.1);color:#cf222e;border:1px solid rgba(207,34,46,.25);font-weight:600;margin-right:6px}
+
+.footer-note{padding:14px 20px;background:#f6f8fa;border-top:1px solid #d0d7de;font-size:12px;color:#656d76;display:flex;justify-content:space-between}
+.footer-note code{font-family:"SF Mono",monospace;background:#fff;border:1px solid #d0d7de;padding:1px 6px;border-radius:3px;color:#0969da}
+</style>
+</head>
+<body>
+
+<h1>🔗 零距离 · 四端订单交互全链路 <span class="sub">consumer / vendor / designer / installer / admin 五泳道</span></h1>
+
+<!-- ============ Part 1: SVG 交互全链路 ============ -->
+<div class="page-card">
+  <div class="page-head">
+    <strong>Part 1 · 交互泳道图</strong>
+    <span class="desc">● 实线箭头 = 主动作流  ·  ▸ 虚线框 = admin 兜底介入（非必现）  ·  📨 = 跨端通知</span>
+  </div>
+  <div class="legend">
+    <span class="lg"><span class="dot" style="background:#0969da"></span>消费者</span>
+    <span class="lg"><span class="dot" style="background:#bf8700"></span>供应商（商品）</span>
+    <span class="lg"><span class="dot" style="background:#8250df"></span>设计师</span>
+    <span class="lg"><span class="dot" style="background:#1a7f37"></span>安装师傅</span>
+    <span class="lg"><span class="dot" style="background:#cf222e"></span>监管后台（兜底介入）</span>
+    <span class="lg"><span class="rect" style="background:rgba(101,109,118,.2);border:1px dashed #d0d7de"></span>报价池 / 匹配</span>
+  </div>
+
+<svg viewBox="0 0 880 860" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1 1 L7 4 L1 7 Z" fill="#57606a"/></marker>
+  </defs>
+
+  <!-- ================== Section 1: 商品订单 ================== -->
+  <!-- Lanes -->
+  <rect x="30" y="30" width="840" height="100" fill="rgba(9,105,218,.03)"/>
+  <rect x="30" y="130" width="840" height="100" fill="rgba(191,135,0,.03)"/>
+  <rect x="30" y="230" width="840" height="70" fill="rgba(207,34,46,.025)"/>
+  <rect x="30" y="300" width="840" height="0" stroke="#d0d7de" stroke-width="1"/>
+  <text x="100" y="22" font-size="14" font-weight="700" fill="#1f2328">① 商品订单 · vendor 接单发货</text>
+  <text x="100" y="41" font-size="11" fill="#656d76">consumer 选商品 → 支付 → vendor 收到订单通知 → 打包发货 → consumer 确认收货</text>
+  <!-- Lane headers -->
+  <rect x="30" y="30" width="72" height="22" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="66" y="45" text-anchor="middle" font-size="12" font-weight="700" fill="#0969da">💙 消费者</text>
+  <rect x="30" y="130" width="72" height="22" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="66" y="145" text-anchor="middle" font-size="12" font-weight="700" fill="#bf8700">🧡 供应商</text>
+  <rect x="30" y="230" width="72" height="22" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="66" y="245" text-anchor="middle" font-size="12" font-weight="700" fill="#cf222e">🔴 监管</text>
+
+  <!-- Consumer nodes -->
+  <rect x="120" y="52" width="110" height="36" rx="6" stroke="#0969da" stroke-width="1.5" fill="rgba(9,105,218,.06)"/>
+  <text x="175" y="68" text-anchor="middle" font-size="12" font-weight="600">选商品 / 下单</text>
+  <text x="175" y="80" text-anchor="middle" font-size="10" fill="#656d76">创建 orders + orderItems</text>
+
+  <rect x="290" y="52" width="100" height="36" rx="6" stroke="#0969da" stroke-width="1.5" fill="rgba(9,105,218,.06)"/>
+  <text x="340" y="68" text-anchor="middle" font-size="12" font-weight="600">支付</text>
+  <text x="340" y="80" text-anchor="middle" font-size="10" fill="#656d76">paidAt = now</text>
+
+  <rect x="540" y="52" width="100" height="36" rx="6" stroke="#0969da" stroke-width="1.5" fill="rgba(9,105,218,.06)"/>
+  <text x="590" y="68" text-anchor="middle" font-size="12" font-weight="600">确认收货</text>
+  <text x="590" y="80" text-anchor="middle" font-size="10" fill="#656d76">confirmedAt</text>
+
+  <rect x="700" y="52" width="90" height="36" rx="6" stroke="#0969da" stroke-width="1.5" fill="rgba(9,105,218,.06)"/>
+  <text x="745" y="68" text-anchor="middle" font-size="12" font-weight="600">评价 / 完成</text>
+
+  <!-- Consumer arrows -->
+  <path d="M230 70 L290 70" stroke="#57606a" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M390 70 Q465 70 540 70" stroke="#57606a" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M640 70 L700 70" stroke="#57606a" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+  <!-- Vendor nodes -->
+  <rect x="390" y="152" width="120" height="36" rx="6" stroke="#bf8700" stroke-width="1.5" fill="rgba(191,135,0,.06)"/>
+  <text x="450" y="168" text-anchor="middle" font-size="12" font-weight="600">📨 收到新订单通知</text>
+  <text x="450" y="180" text-anchor="middle" font-size="10" fill="#656d76">工作台 orders?vendorId=</text>
+
+  <rect x="540" y="152" width="100" height="36" rx="6" stroke="#bf8700" stroke-width="1.5" fill="rgba(191,135,0,.06)"/>
+  <text x="590" y="168" text-anchor="middle" font-size="12" font-weight="600">📦 打包发货</text>
+  <text x="590" y="180" text-anchor="middle" font-size="10" fill="#656d76">shippedAt + 物流号</text>
+
+  <path d="M510 170 L540 170" stroke="#bf8700" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+  <!-- Cross-lane: 支付 → vendor 通知 -->
+  <path d="M390 88 Q390 130 450 152" stroke="#bf8700" stroke-width="1.8" fill="none" marker-end="url(#arr)"/>
+  <circle cx="410" cy="120" r="11" fill="#bf8700"/>
+  <text x="410" y="120" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#fff" font-weight="700">📨</text>
+
+  <!-- Cross-lane: vendor 发货 → consumer 物流通知 -->
+  <path d="M590 152 Q590 120 640 88" stroke="#bf8700" stroke-width="1.8" fill="none" marker-end="url(#arr)"/>
+  <circle cx="605" cy="118" r="11" fill="#bf8700"/>
+  <text x="605" y="118" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#fff" font-weight="700">🚚</text>
+
+  <!-- Admin 兜底 bracket -->
+  <path d="M385 148 L385 194 L645 194 L645 148" stroke="#cf222e" stroke-width="1" stroke-dasharray="4 3" fill="none"/>
+  <text x="395" y="210" font-size="10" fill="#cf222e" font-weight="600">🚨 商品已付款 24h 未发货 → admin 强制切单给其他 vendor 接手</text>
+
+
+  <!-- ================== Section 2: 设计订单 ================== -->
+  <rect x="30" y="320" width="840" height="100" fill="rgba(9,105,218,.03)"/>
+  <rect x="30" y="420" width="840" height="100" fill="rgba(130,80,223,.03)"/>
+  <rect x="30" y="520" width="840" height="70" fill="rgba(207,34,46,.025)"/>
+  <rect x="30" y="420" width="840" height="0" stroke="#d0d7de" stroke-width="1"/>
+  <rect x="30" y="520" width="840" height="0" stroke="#d0d7de" stroke-width="1"/>
+  <text x="100" y="312" font-size="14" font-weight="700" fill="#1f2328">② 设计订单 · 多设计师报价 → 选标 → 草稿 → 交付</text>
+  <text x="100" y="330" font-size="11" fill="#656d76">design_demand 进入 quoting 状态 → 多位设计师报价 → consumer 选中 1 位 → drafting → finalizing 交付</text>
+  <!-- Lane headers -->
+  <rect x="30" y="320" width="72" height="22" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="66" y="335" text-anchor="middle" font-size="12" font-weight="700" fill="#0969da">💙 消费者</text>
+  <rect x="30" y="420" width="72" height="22" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="66" y="435" text-anchor="middle" font-size="12" font-weight="700" fill="#8250df">💜 设计师</text>
+  <rect x="30" y="520" width="72" height="22" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="66" y="535" text-anchor="middle" font-size="12" font-weight="700" fill="#cf222e">🔴 监管</text>
+
+  <!-- Consumer nodes -->
+  <rect x="120" y="342" width="120" height="36" rx="6" stroke="#0969da" stroke-width="1.5" fill="rgba(9,105,218,.06)"/>
+  <text x="180" y="358" text-anchor="middle" font-size="12" font-weight="600">📝 发布设计需求</text>
+  <text x="180" y="370" text-anchor="middle" font-size="10" fill="#656d76">→ design_demands / quoting</text>
+
+  <!-- 报价池 -->
+  <rect x="280" y="342" width="150" height="36" rx="6" stroke="#656d76" stroke-width="1.5" stroke-dasharray="3 2" fill="rgba(101,109,118,.06)"/>
+  <text x="355" y="358" text-anchor="middle" font-size="12" font-weight="600">💸 报价池（quoting）</text>
+  <text x="355" y="370" text-anchor="middle" font-size="10" fill="#656d76">多位设计师报价 → 选 1 位</text>
+
+  <rect x="460" y="342" width="110" height="36" rx="6" stroke="#0969da" stroke-width="1.5" fill="rgba(9,105,218,.06)"/>
+  <text x="515" y="358" text-anchor="middle" font-size="12" font-weight="600">✅ 选设计师</text>
+  <text x="515" y="370" text-anchor="middle" font-size="10" fill="#656d76">acceptedAt → drafting</text>
+
+  <rect x="640" y="342" width="90" height="36" rx="6" stroke="#0969da" stroke-width="1.5" fill="rgba(9,105,218,.06)"/>
+  <text x="685" y="358" text-anchor="middle" font-size="12" font-weight="600">💰 确认打款</text>
+
+  <rect x="750" y="342" width="90" height="36" rx="6" stroke="#0969da" stroke-width="1.5" fill="rgba(9,105,218,.06)"/>
+  <text x="795" y="358" text-anchor="middle" font-size="12" font-weight="600">🎉 完成</text>
+
+  <path d="M240 360 L280 360" stroke="#57606a" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M430 360 L460 360" stroke="#57606a" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M570 360 Q605 360 640 360" stroke="#57606a" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M730 360 L750 360" stroke="#57606a" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+  <!-- Designer nodes -->
+  <rect x="210" y="442" width="110" height="36" rx="6" stroke="#8250df" stroke-width="1.5" fill="rgba(130,80,223,.06)"/>
+  <text x="265" y="458" text-anchor="middle" font-size="12" font-weight="600">💸 报价 / 抢单</text>
+  <text x="265" y="470" text-anchor="middle" font-size="10" fill="#656d76">工作台 → 接单大厅</text>
+
+  <rect x="460" y="442" width="120" height="36" rx="6" stroke="#8250df" stroke-width="1.5" fill="rgba(130,80,223,.06)"/>
+  <text x="520" y="458" text-anchor="middle" font-size="12" font-weight="600">🔔 被选中通知</text>
+  <text x="520" y="470" text-anchor="middle" font-size="10" fill="#656d76">drafting → 提交草稿</text>
+
+  <rect x="610" y="442" width="120" height="36" rx="6" stroke="#8250df" stroke-width="1.5" fill="rgba(130,80,223,.06)"/>
+  <text x="670" y="458" text-anchor="middle" font-size="12" font-weight="600">🎨 finalizing 交付</text>
+  <text x="670" y="470" text-anchor="middle" font-size="10" fill="#656d76">提交源文件 + 预览</text>
+
+  <path d="M320 460 Q390 460 460 460" stroke="#8250df" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M580 460 L610 460" stroke="#8250df" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+  <!-- Cross-lane: 设计师报价 → 报价池 -->
+  <path d="M265 442 Q265 400 355 378" stroke="#8250df" stroke-width="1.8" fill="none" marker-end="url(#arr)"/>
+  <!-- Cross-lane: consumer 选中 → designer 通知 -->
+  <path d="M515 378 Q515 415 520 442" stroke="#8250df" stroke-width="1.8" fill="none" marker-end="url(#arr)"/>
+  <!-- Cross-lane: designer 交付 → consumer -->
+  <path d="M670 442 Q670 410 685 378" stroke="#8250df" stroke-width="1.8" fill="none" marker-end="url(#arr)"/>
+
+  <!-- Admin bracket -->
+  <path d="M455 438 L455 494 L695 494 L695 438" stroke="#cf222e" stroke-width="1" stroke-dasharray="4 3" fill="none"/>
+  <text x="100" y="548" font-size="10" fill="#cf222e" font-weight="600">🚨 超 7 天未交付 → admin 强制切给其他设计师 / 纠纷时人工介入退款</text>
+
+
+  <!-- ================== Section 3: 安装订单 ================== -->
+  <rect x="30" y="605" width="840" height="100" fill="rgba(9,105,218,.03)"/>
+  <rect x="30" y="705" width="840" height="100" fill="rgba(26,127,55,.03)"/>
+  <rect x="30" y="805" width="840" height="50" fill="rgba(207,34,46,.025)"/>
+  <rect x="30" y="705" width="840" height="0" stroke="#d0d7de" stroke-width="1"/>
+  <rect x="30" y="805" width="840" height="0" stroke="#d0d7de" stroke-width="1"/>
+  <text x="100" y="597" font-size="14" font-weight="700" fill="#1f2328">③ 安装订单 · 师傅报价 → 接单 → 上门排期 → 完工验收 → 结算</text>
+  <text x="100" y="615" font-size="11" fill="#656d76">installation_demand → quoting → accepted → in_progress → settled（多了上门排期 + 完工照提交）</text>
+  <!-- Lane headers -->
+  <rect x="30" y="605" width="72" height="22" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="66" y="620" text-anchor="middle" font-size="12" font-weight="700" fill="#0969da">💙 消费者</text>
+  <rect x="30" y="705" width="72" height="22" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="66" y="720" text-anchor="middle" font-size="12" font-weight="700" fill="#1a7f37">💚 师傅</text>
+  <rect x="30" y="805" width="72" height="22" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="66" y="820" text-anchor="middle" font-size="12" font-weight="700" fill="#cf222e">🔴 监管</text>
+
+  <!-- Consumer -->
+  <rect x="120" y="627" width="120" height="36" rx="6" stroke="#0969da" stroke-width="1.5" fill="rgba(9,105,218,.06)"/>
+  <text x="180" y="643" text-anchor="middle" font-size="12" font-weight="600">📍 发布安装需求</text>
+  <text x="180" y="655" text-anchor="middle" font-size="10" fill="#656d76">installation_demands</text>
+
+  <rect x="280" y="627" width="150" height="36" rx="6" stroke="#656d76" stroke-width="1.5" stroke-dasharray="3 2" fill="rgba(101,109,118,.06)"/>
+  <text x="355" y="643" text-anchor="middle" font-size="12" font-weight="600">💸 师傅报价池</text>
+  <text x="355" y="655" text-anchor="middle" font-size="10" fill="#656d76">附近匹配类别 · 选 1 位</text>
+
+  <rect x="460" y="627" width="120" height="36" rx="6" stroke="#0969da" stroke-width="1.5" fill="rgba(9,105,218,.06)"/>
+  <text x="520" y="643" text-anchor="middle" font-size="12" font-weight="600">✅ 选师傅 / 排期</text>
+
+  <rect x="640" y="627" width="100" height="36" rx="6" stroke="#0969da" stroke-width="1.5" fill="rgba(9,105,218,.06)"/>
+  <text x="690" y="643" text-anchor="middle" font-size="12" font-weight="600">📋 完工验收</text>
+
+  <rect x="760" y="627" width="90" height="36" rx="6" stroke="#0969da" stroke-width="1.5" fill="rgba(9,105,218,.06)"/>
+  <text x="805" y="643" text-anchor="middle" font-size="12" font-weight="600">💰 结算</text>
+
+  <path d="M240 645 L280 645" stroke="#57606a" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M430 645 L460 645" stroke="#57606a" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M580 645 Q610 645 640 645" stroke="#57606a" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M740 645 L760 645" stroke="#57606a" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+  <!-- Installer nodes -->
+  <rect x="210" y="727" width="130" height="36" rx="6" stroke="#1a7f37" stroke-width="1.5" fill="rgba(26,127,55,.06)"/>
+  <text x="275" y="743" text-anchor="middle" font-size="12" font-weight="600">🗺 附近找单 / 报价</text>
+  <text x="275" y="755" text-anchor="middle" font-size="10" fill="#656d76">接单大厅 · 按类别匹配</text>
+
+  <rect x="460" y="727" width="120" height="36" rx="6" stroke="#1a7f37" stroke-width="1.5" fill="rgba(26,127,55,.06)"/>
+  <text x="520" y="743" text-anchor="middle" font-size="12" font-weight="600">📅 accepted 接单</text>
+  <text x="520" y="755" text-anchor="middle" font-size="10" fill="#656d76">填上门时间 + 电话</text>
+
+  <rect x="610" y="727" width="130" height="36" rx="6" stroke="#1a7f37" stroke-width="1.5" fill="rgba(26,127,55,.06)"/>
+  <text x="675" y="743" text-anchor="middle" font-size="12" font-weight="600">🔧 in_progress 施工</text>
+  <text x="675" y="755" text-anchor="middle" font-size="10" fill="#656d76">拍完工照 / 提交结算单</text>
+
+  <rect x="770" y="727" width="80" height="36" rx="6" stroke="#1a7f37" stroke-width="1.5" fill="rgba(26,127,55,.06)"/>
+  <text x="810" y="743" text-anchor="middle" font-size="12" font-weight="600">settled 结算</text>
+
+  <path d="M340 745 Q400 745 460 745" stroke="#1a7f37" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M580 745 L610 745" stroke="#1a7f37" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M740 745 Q755 745 770 745" stroke="#1a7f37" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+  <!-- Cross-lane -->
+  <path d="M275 727 Q275 690 355 663" stroke="#1a7f37" stroke-width="1.8" fill="none" marker-end="url(#arr)"/>
+  <path d="M520 663 Q520 700 520 727" stroke="#1a7f37" stroke-width="1.8" fill="none" marker-end="url(#arr)"/>
+  <path d="M675 727 Q675 690 690 663" stroke="#1a7f37" stroke-width="1.8" fill="none" marker-end="url(#arr)"/>
+
+  <!-- Admin 兜底行 -->
+  <rect x="220" y="820" width="230" height="26" rx="4" fill="rgba(207,34,46,.08)" stroke="#cf222e" stroke-width="1" stroke-dasharray="3 2"/>
+  <text x="335" y="837" text-anchor="middle" font-size="11" font-weight="600" fill="#cf222e">🚨 48h 无师傅接单 → admin 强制派单（按地理位置）</text>
+
+  <rect x="560" y="820" width="260" height="26" rx="4" fill="rgba(207,34,46,.08)" stroke="#cf222e" stroke-width="1" stroke-dasharray="3 2"/>
+  <text x="690" y="837" text-anchor="middle" font-size="11" font-weight="600" fill="#cf222e">🚨 施工 72h 无进展 → 催单 / 换师傅 / 部分结算</text>
+
+</svg>
+</div>
+
+<!-- ============ Part 2: 角色分工 ============ -->
+<div class="page-card">
+  <div class="page-head"><strong>Part 2 · 每端只管自己的事 — 职责不重叠</strong></div>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th style="width:80px">端</th><th style="width:180px">工作台入口</th><th>核心职责</th><th style="width:240px">后端 API 路由（示例）</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="role-chip rc-consumer">consumer</span></td>
+          <td>小程序 · 我的订单</td>
+          <td>发需求 / 选 / 付 / 收 / 评 —— <strong>永远不下沉到后台</strong>，只在主包操作</td>
+          <td><span class="api-tag get">GET</span><span class="api-path">/orders/my</span><br><span class="api-tag post">POST</span><span class="api-path">/design-demand</span></td>
+        </tr>
+        <tr>
+          <td><span class="role-chip rc-vendor">vendor</span></td>
+          <td>Taro 分包 · pages-vendor</td>
+          <td>只管商品订单的发货 + 物流录入 —— <strong>不碰设计/安装单</strong></td>
+          <td><span class="api-tag get">GET</span><span class="api-path">/admin/orders?type=goods&vendorId=:</span><br><span class="api-tag post">POST</span><span class="api-path">/admin/orders/:id/ship</span></td>
+        </tr>
+        <tr>
+          <td><span class="role-chip rc-designer">designer</span></td>
+          <td>Taro 分包 · pages-designer</td>
+          <td>只管设计订单 —— 抢单大厅报价 → 被选中 → 草稿 → finalizing 交付</td>
+          <td><span class="api-tag get">GET</span><span class="api-path">/design-demand/list?quoting</span><br><span class="api-tag patch">PATCH</span><span class="api-path">/design-order/:id/finalize</span></td>
+        </tr>
+        <tr>
+          <td><span class="role-chip rc-installer">installer</span></td>
+          <td>Taro 分包 · pages-installer</td>
+          <td>只管安装订单 —— 附近找单 → 报价 → 上门 → 完工照 → 结算</td>
+          <td><span class="api-tag get">GET</span><span class="api-path">/installation-demand?nearby=50km</span><br><span class="api-tag patch">PATCH</span><span class="api-path">/install-order/:id/complete</span></td>
+        </tr>
+        <tr>
+          <td><span class="role-chip rc-admin">admin</span></td>
+          <td>ljl-sc-admin 独立 SPA</td>
+          <td>只在卡住时兜底介入 + 审核入驻 + 提现审批 —— <strong>不替 B 端做日常操作</strong></td>
+          <td><span class="api-tag get">GET</span><span class="api-path">/admin/orders?alerted=true</span><br><span class="api-tag post">POST</span><span class="api-path">/admin/orders/:id/force-transfer</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="footer-note">
+    <span>后端 Entity 已齐（vendorId / designerId / installerId / status 枚举 / createdAt / shippedAt）—— 只需加 role 过滤查询即可</span>
+    <span>← <span class="danger-tag">≠</span> 每端独立工作台，admin 不叠加全部功能</span>
+  </div>
+</div>
+
+<!-- ============ Part 3: 跨端通知 ============ -->
+<div class="page-card">
+  <div class="page-head"><strong>Part 3 · 跨端通知机制（图里 📨 🚚 标记的位置）</strong></div>
+  <div style="padding:0 20px 10px">
+    <div class="notif-row" style="background:#f6f8fa">
+      <div style="font-weight:600">触发方</div>
+      <div style="font-weight:600">接收方</div>
+      <div style="font-weight:600">方式 / 实现</div>
+    </div>
+    <div class="notif-row"><div>consumer 支付成功</div><div>🧡 vendor（对应 vendorId）</div><div>工作台新订单 badge + 推送（WebSocket / 轮询）</div></div>
+    <div class="notif-row"><div>consumer 发布 demand → quoting</div><div>💜 在线设计师（资质匹配）</div><div>接单大厅新需求 + 推送</div></div>
+    <div class="notif-row"><div>designer 报价</div><div>💙 consumer（需求发布者）</div><div>报价池更新 badge + 推送</div></div>
+    <div class="notif-row"><div>consumer 选中某设计师</div><div>💜 被选中者 + 其他报价者（淘汰）</div><div>双向通知：🔔 accepted / 🔕 rejected</div></div>
+    <div class="notif-row"><div>consumer 发布 install 需求</div><div>💚 附近 50km 匹配类别的师傅</div><div>接单大厅 + 推送</div></div>
+    <div class="notif-row"><div>installer 填完工照</div><div>💙 consumer 验收 + 🔴 admin</div><div>consumer 端"师傅已完工" + 自动触发结算</div></div>
+    <div class="notif-row"><div>vendor 发货填物流号</div><div>💙 consumer</div><div>物流追踪页可查</div></div>
+    <div class="notif-row"><div>admin 强制切单</div><div>💛 原 B 端（被切）+ 新 B 端（接手）</div><div>双向通知"你被换下了 / 你接了新单"</div></div>
+  </div>
+</div>
+
+<!-- ============ Part 4: admin 兜底场景 ============ -->
+<div class="page-card">
+  <div class="page-head"><strong>Part 4 · admin 只在卡住时介入（红色虚线框标记）</strong></div>
+  <div style="padding:0 20px 10px">
+    <div class="admin-alert-row" style="background:#f6f8fa">
+      <div style="font-weight:600">场景</div>
+      <div style="font-weight:600">告警规则</div>
+      <div style="font-weight:600">admin 介入动作</div>
+    </div>
+    <div class="admin-alert-row"><div>🚨 商品已付款未发货</div><div>超时 24h</div><div>强制切单给其他 vendor 接手 · 通知 consumer 换供应商</div></div>
+    <div class="admin-alert-row"><div>🚨 设计接单未交付</div><div>超时 7 天</div><div>强制切给其他设计师 · 退款审批入口打开</div></div>
+    <div class="admin-alert-row"><div>🚨 安装无师傅接单</div><div>超时 48h</div><div>强制派单（按地理位置 + 类别匹配度）</div></div>
+    <div class="admin-alert-row"><div>🚨 施工无进展</div><div>超时 72h</div><div>催单 / 换师傅 / 部分结算</div></div>
+    <div class="admin-alert-row"><div>🚨 consumer 投诉纠纷</div><div>人工触发</div><div>冻结资金 → 人工审核 → 退款 / 仲裁</div></div>
+  </div>
+</div>
+
+<div style="font-size:11px;color:#656d76;text-align:center;margin-top:20px;padding:10px;background:#f6f8fa;border-radius:8px">
+  数据源：MySQL 真数据 · 后端 Entity 已全字段 · 前端路由壳预留（pages-designer / pages-installer / pages-vendor）
+</div>
+
+</body>
+</html>

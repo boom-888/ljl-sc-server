@@ -1,0 +1,44 @@
+# 运行时生成（环境变量文件，含敏感信息）
+.env
+.env.development
+.env.production
+
+# 日志
+*.log
+logs/
+
+# 依赖
+node_modules/
+
+# 构建
+dist/
+build/
+pc-dist.tar.gz
+admin-dist.tar.gz
+fe-src.tar.gz
+
+# 数据库运行时
+data/
+__tests__/
+coverage/
+.nyc_output/
+*.sqlite
+*.sqlite-journal
+
+# 临时脚本
+tmp-*.ts
+tmp-*.js
+tmp-*.json
+tmp-*.ps1
+_smoke-*.txt
+test-*.ts
+test-*.js
+alter_*.js
+gen-hash*.cjs
+ops-diag.mjs
+deploy*.mjs
+deploy*.js
+
+# 系统
+.DS_Store
+Thumbs.db

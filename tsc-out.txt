@@ -1,0 +1,6 @@
+﻿error TS6059: File 'D:/00/ljl-sc/server/tests/admin-orders.test.ts' is not under 'rootDir' 'D:/00/ljl-sc/server/src'. 'rootDir' is expected to contain all source files.
+  The file is in the program because:
+    Matched by include pattern 'tests/**/*' in 'D:/00/ljl-sc/server/tsconfig.json'
+error TS6059: File 'D:/00/ljl-sc/server/tests/vendor-workspace.test.ts' is not under 'rootDir' 'D:/00/ljl-sc/server/src'. 'rootDir' is expected to contain all source files.
+  The file is in the program because:
+    Matched by include pattern 'tests/**/*' in 'D:/00/ljl-sc/server/tsconfig.json'

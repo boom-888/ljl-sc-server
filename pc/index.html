@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>零距离 · 工作台</title>
+<!-- Element Plus CDN -->
+<link rel="stylesheet" href="https://unpkg.com/element-plus@2.7.8/dist/index.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body,#app{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;background:#f5f7fa;color:#1f2937}
+
+/* Layout */
+.wrap{display:flex;height:100vh;overflow:hidden}
+.aside{width:220px;background:linear-gradient(180deg,#0f172a 0%,#1e3a5f 100%);color:#fff;display:flex;flex-direction:column}
+.aside .brand{padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.08)}
+.aside .brand h1{font-size:15px;font-weight:700;letter-spacing:1px}
+.aside .brand h1 span{background:linear-gradient(90deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.aside .brand .role-label{font-size:11px;color:rgba(255,255,255,.5);margin-top:4px}
+.aside .el-menu{flex:1;border-right:none;background:transparent}
+.aside .el-menu .el-menu-item,.aside .el-menu .el-sub-menu__title{color:rgba(255,255,255,.75)}
+.aside .el-menu .el-menu-item:hover,.aside .el-menu .el-sub-menu__title:hover{background:rgba(255,255,255,.08)!important;color:#fff}
+.aside .el-menu .el-menu-item.is-active{background:rgba(96,165,250,.2)!important;color:#fff;border-right:2px solid #60a5fa}
+.aside .el-menu .el-sub-menu .el-menu-item{background:#0a1628!important}
+
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:56px;background:#fff;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;padding:0 24px}
+.topbar .crumbs{font-size:13px;color:#6b7280}
+.topbar .crumbs .current{color:#0f172a;font-weight:600}
+.topbar .right{display:flex;align-items:center;gap:16px;font-size:13px;color:#6b7280}
+.topbar .right .user{color:#0f172a;font-weight:600}
+.topbar .logout{color:#ef4444;cursor:pointer;text-decoration:none;font-weight:500}
+.topbar .logout:hover{text-decoration:underline}
+
+.content{flex:1;overflow:auto;padding:20px 24px;background:#f5f7fa}
+.page-card{background:#fff;border-radius:12px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:16px}
+.page-card h2{font-size:16px;color:#0f172a;margin-bottom:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+.page-card h2::before{content:"";width:3px;height:16px;border-radius:2px;background:linear-gradient(180deg,#60a5fa,#a78bfa)}
+
+/* Dashboard 卡片网格 */
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:16px}
+.dash-card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.05);border-left:4px solid #60a5fa}
+.dash-card.orange{border-left-color:#f59e0b}
+.dash-card.purple{border-left-color:#8b5cf6}
+.dash-card.green{border-left-color:#10b981}
+.dash-card.red{border-left-color:#ef4444}
+.dash-card .label{font-size:12px;color:#6b7280;margin-bottom:6px}
+.dash-card .value{font-size:26px;font-weight:700;color:#0f172a}
+.dash-card .sub{font-size:11px;color:#9ca3af;margin-top:4px}
+
+/* 加载 */
+.loading{display:flex;justify-content:center;align-items:center;height:200px;color:#9ca3af}
+
+/* 空状态 */
+.empty{text-align:center;padding:60px 20px;color:#9ca3af}
+.empty .emoji{font-size:48px;margin-bottom:12px}
+.empty .tip{font-size:13px}
+
+/* 登录态守卫拦截 */
+.blocked{display:flex;justify-content:center;align-items:center;height:100vh;color:#6b7280}
+
+/* Element Plus 组件微调 */
+.el-button{border-radius:8px}
+.el-input__wrapper{border-radius:8px}
+.el-table .el-table__row{cursor:pointer}
+.el-tag{border:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- 未登录拦截 -->
+  <div v-if="!authChecked" class="blocked">加载中…</div>
+  <div v-else-if="!currentUser" class="blocked">
+    <div style="text-align:center">
+      <div style="font-size:48px;margin-bottom:12px">🔒</div>
+      <div>请先登录工作台</div>
+      <div style="margin-top:16px">
+        <a href="/workspace" style="color:#2563eb;text-decoration:none">前往统一登录页 →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 工作台主体 -->
+  <template v-else>
+    <div class="wrap">
+      <aside class="aside">
+        <div class="brand">
+          <h1>零距离 <span>{{ roleLabel }}</span></h1>
+          <div class="role-label">{{ currentUser.role }} · {{ currentUser.nickname || currentUser.phone }}</div>
+        </div>
+        <el-menu
+          :default-active="activeMenu"
+          router
+          background-color="transparent"
+          text-color="rgba(255,255,255,.75)"
+          active-text-color="#ffffff"
+        >
+          <el-menu-item v-for="m in menus" :key="m.path" :index="m.path">
+            <span>{{ m.icon }} {{ m.label }}</span>
+          </el-menu-item>
+        </el-menu>
+      </aside>
+
+      <div class="main">
+        <header class="topbar">
+          <div class="crumbs">
+            {{ crumbs }}
+          </div>
+          <div class="right">
+            <span>你好，<span class="user">{{ currentUser.nickname || currentUser.phone }}</span></span>
+            <a class="logout" @click="logout">退出登录</a>
+          </div>
+        </header>
+
+        <main class="content">
+          <router-view v-slot="{ Component }">
+            <transition name="fade" mode="out-in">
+              <component :is="Component || defaultPage" />
+            </transition>
+          </router-view>
+        </main>
+      </div>
+    </div>
+  </template>
+</div>
+
+<!-- CDN: Vue 3 + Element Plus + Vue Router -->
+<script src="https://unpkg.com/vue@3.4.27/dist/vue.global.prod.js"></script>
+<script src="https://unpkg.com/vue-router@4.3.2/dist/vue-router.global.prod.js"></script>
+<script src="https://unpkg.com/element-plus@2.7.8/dist/index.full.min.js"></script>
+<script src="https://unpkg.com/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+<script src="https://unpkg.com/axios@1.7.2/dist/axios.min.js"></script>
+
+<!-- 共享层 -->
+<script src="/pc/shared/api.js"></script>
+
+<script>
+const { createApp, ref, reactive, computed, onMounted, defineComponent, h } = Vue;
+const { createRouter, createWebHashHistory, useRouter, useRoute } = VueRouter;
+
+// ========== 1. 识别当前角色 ==========
+const ROLE_INFO = {
+  vendor:    { label: '供应商',   pathPrefix: '/pc/vendor',    allowedRole: 'vendor' },
+  designer:  { label: '设计师',   pathPrefix: '/pc/designer',  allowedRole: 'designer' },
+  installer: { label: '安装师傅', pathPrefix: '/pc/installer', allowedRole: 'installer' },
+};
+function detectRole() {
+  const p = (location.pathname || '').replace(/^\/pc\//, '').split('/')[0];
+  return ROLE_INFO[p] ? p : null;
+}
+
+// ========== 2. 登录态守卫 ==========
+const currentRole = detectRole();
+const currentUser = ref(null);
+const authChecked = ref(false);
+
+function logout() {
+  localStorage.removeItem('ljl_token');
+  localStorage.removeItem('ljl_user');
+  window.location.href = '/workspace';
+}
+
+function checkAuth() {
+  try {
+    const u = JSON.parse(localStorage.getItem('ljl_user') || 'null');
+    const token = localStorage.getItem('ljl_token');
+    if (!token || !u) { authChecked.value = true; return; }
+    // 角色匹配校验：只能进自己角色的工作台
+    if (currentRole && currentRole !== u.role && u.role !== 'admin') {
+      // 不匹配 → 清掉跳登录
+      logout(); return;
+    }
+    currentUser.value = u;
+  } catch {}
+  authChecked.value = true;
+}
+
+// ========== 3. 各角色独立模块（动态加载） ==========
+// 每个角色 .js 必须暴露：{ menus: [{ path, label, icon, component }], defaultRoute: string }
+// 各文件用 window.__roleModules = { ... } 挂载
+
+// —— vendor 模块 ——
+window.__roleModules = {};
+function registerRole(role, module) {
+  window.__roleModules[role] = module;
+}
+
+// 动态加载角色模块脚本
+async function loadRoleModules() {
+  const role = currentRole;
+  if (!role) return null;
+  // 依次加载 shared → vendor/designer/installer.js（站点根绝对路径，避免子路由相对解析错位）
+  await loadScript('/pc/' + role + '.js');
+  return window.__roleModules[role] || null;
+}
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector('script[src="'+src+'"]')) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve; s.onerror = reject;
+    document.body.appendChild(s);
+  });
+}
+
+// ========== 4. 通用组件：空页 / 加载 ==========
+const LoadingPage = defineComponent({ template: '<div class="loading">加载中…</div>' });
+const PlaceholderPage = defineComponent({
+  props: ['title'],
+  template: `<div class="page-card">
+    <h2>{{ title || '功能开发中' }}</h2>
+    <div class="empty">
+      <div class="emoji">🚧</div>
+      <div class="tip">此页面骨架已搭好，对接后端 API 后启用</div>
+    </div>
+  </div>`
+});
+
+// ========== 5. Dashboard 通用组件 ==========
+function makeDashPage(role, cfg) {
+  return defineComponent({
+    data() { return { loading: true, data: {} }; },
+    template: `<div>
+      <div class="page-card"><h2>工作台概览</h2>
+        <div class="dash-grid" v-if="!loading">
+          <div v-for="c in cards" :key="c.label" :class="'dash-card '+(c.theme||'')">
+            <div class="label">{{ c.label }}</div>
+            <div class="value">{{ c.value }}</div>
+            <div class="sub" v-if="c.sub">{{ c.sub }}</div>
+          </div>
+        </div>
+        <div v-else class="loading">加载中…</div>
+      </div>
+      <div class="page-card" v-if="todos.length">
+        <h2>待办事项</h2>
+        <el-table :data="todos" stripe size="small">
+          <el-table-column prop="label" label="事项" />
+          <el-table-column prop="count" label="数量" width="100" align="center">
+            <template #default="{row}">
+              <el-tag v-if="row.count>0" type="danger" size="small">{{ row.count }}</el-tag>
+              <el-tag v-else type="info" size="small">0</el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+    </div>`,
+    computed: {
+      cards() {
+        const d = this.data || {};
+        return cfg.cards.map(c => ({ ...c, value: this.resolveValue(c.key), sub: c.subKey ? this.resolveValue(c.subKey) : null }));
+      },
+      todos() { return this.data.todos || []; }
+    },
+    methods: {
+      resolveValue(key) {
+        const d = this.data || {};
+        if (key.includes('.')) {
+          const parts = key.split('.');
+          let v = d; for (const p of parts) v = v?.[p]; return v ?? '-';
+        }
+        if (d[key] === undefined || d[key] === null) return '-';
+        if (typeof d[key] === 'number') return d[key].toLocaleString();
+        return d[key];
+      }
+    },
+    async mounted() {
+      try {
+        const r = await window.__api.get('/' + role + '/dashboard');
+        this.data = r.data || {};
+      } catch (e) { /* toast 已由 api.js 处理 */ }
+      this.loading = false;
+    }
+  });
+}
+
+// ========== 6. 创建 App ==========
+async function bootstrap() {
+  if (!currentRole) {
+    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#9ca3af">请从 /workspace 统一登录页进入</div>';
+    return;
+  }
+
+  // 先加载角色模块
+  const roleMod = await loadRoleModules();
+
+  // 构建菜单 + 路由
+  const menus = roleMod?.menus || [{ path: '/dashboard', label: '概览', icon: '📊' }];
+  const routes = [
+    { path: '/', redirect: roleMod?.defaultRoute || '/dashboard' },
+    ...menus.map(m => ({ path: m.path, component: m.component || PlaceholderPage, meta: { title: m.label } })),
+    { path: '/:pathMatch(.*)*', redirect: roleMod?.defaultRoute || '/dashboard' },
+  ];
+
+  const router = createRouter({ history: createWebHashHistory(), routes });
+  checkAuth();
+
+  const app = createApp({
+    setup() {
+      const activeMenu = ref('/dashboard');
+      const route = VueRouter.useRoute();
+      const crumbs = computed(() => {
+        const m = menus.find(x => x.path === route.path) || menus[0];
+        return (ROLE_INFO[currentRole]?.label || '') + ' / ' + (m?.label || '');
+      });
+      Vue.watch(() => route.path, (p) => { activeMenu.value = p; });
+      // 模板用到的 ref 必须在此 return，否则模板里 authChecked/currentUser 会是 undefined
+      return { activeMenu, menus, crumbs, currentUser, authChecked, currentRole, roleLabel: ROLE_INFO[currentRole]?.label, logout };
+    }
+  });
+
+  app.use(ElementPlus);
+  for (const [k, comp] of Object.entries(ElementPlusIconsVue)) app.component(k, comp);
+  app.use(router);
+  app.mount('#app');
+}
+
+bootstrap().catch(e => console.error('[bootstrap] FATAL:', e));
+</script>
+</body>
+</html>

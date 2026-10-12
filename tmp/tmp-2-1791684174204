@@ -1,0 +1,51 @@
+{
+  "name": "ljl-mall-server",
+  "version": "0.1.0",
+  "description": "零距离广告商城 · Sprint 1 后端（Auth + Home 13 endpoint）",
+  "private": true,
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "test": "tsx ../scripts/test-sprint1-api.ts --base=http://localhost:3001",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:unit:cov": "vitest run --coverage"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "china-division": "^2.7.0",
+    "cors": "^2.8.5",
+    "dotenv": "^18.0.5",
+    "express": "^4.19.2",
+    "express-fileupload": "^1.5.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "ioredis": "^5.11.1",
+    "jimp": "^0.22.12",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.24.5",
+    "reflect-metadata": "^0.2.2",
+    "sharp": "^0.34.5",
+    "typeorm": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/express-fileupload": "^1.5.1",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^8.71.1",
+    "@typescript-eslint/parser": "^8.71.1",
+    "@vitest/coverage-v8": "^3.2.7",
+    "autocannon": "^8.0.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.9",
+    "ssh2": "^1.17.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^3.2.7"
+  }
+}

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>零距离 · 统一工作台登录</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 40%,#0f172a 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;color:#1f2937;line-height:1.5}
+.wrap{width:100%;max-width:1080px;padding:32px 20px}
+.header{text-align:center;margin-bottom:32px}
+.header h1{font-size:28px;color:#fff;font-weight:700;letter-spacing:1px}
+.header h1 span{background:linear-gradient(90deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header p{font-size:13px;color:rgba(255,255,255,.5);margin-top:8px}
+
+/* ---------- 角色卡片网格 ---------- */
+.roles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.role-card{background:rgba(255,255,255,.06);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:18px 14px 16px;cursor:pointer;transition:all .2s ease;text-align:center;position:relative}
+.role-card:hover{background:rgba(255,255,255,.1);transform:translateY(-2px);border-color:rgba(255,255,255,.25)}
+.role-card.active{background:rgba(255,255,255,.14);border-color:#60a5fa;box-shadow:0 0 0 2px rgba(96,165,250,.25)}
+.role-card.disabled{opacity:.5;cursor:not-allowed;pointer-events:none}
+.role-card .icon{width:44px;height:44px;border-radius:12px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff}
+.role-card.admin .icon{background:linear-gradient(135deg,#ef4444,#b91c1c)}
+.role-card.vendor .icon{background:linear-gradient(135deg,#f59e0b,#b45309)}
+.role-card.designer .icon{background:linear-gradient(135deg,#8b5cf6,#5b21b6)}
+.role-card.installer .icon{background:linear-gradient(135deg,#10b981,#047857)}
+.role-card.consumer .icon{background:linear-gradient(135deg,#3b82f6,#1d4ed8)}
+.role-card .name{font-size:14px;font-weight:600;color:#fff;margin-bottom:4px}
+.role-card .desc{font-size:11px;color:rgba(255,255,255,.45);line-height:1.4}
+.role-card .tag{position:absolute;top:10px;right:10px;font-size:10px;padding:1px 7px;border-radius:10px;background:rgba(255,255,255,.15);color:rgba(255,255,255,.65)}
+
+/* ---------- 登录表单 ---------- */
+.form-card{background:#fff;border-radius:18px;padding:28px 32px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.form-card h2{font-size:18px;color:#0f172a;font-weight:700;margin-bottom:6px}
+.form-card .sub{font-size:12px;color:#6b7280;margin-bottom:22px}
+.form-card .sub b{color:#0f172a}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;color:#374151;font-weight:500;margin-bottom:6px}
+.field input{width:100%;height:42px;border:1.5px solid #e5e7eb;border-radius:10px;padding:0 14px;font-size:14px;color:#0f172a;transition:all .15s}
+.field input:focus{outline:none;border-color:#60a5fa;box-shadow:0 0 0 3px rgba(96,165,250,.15)}
+.field input::placeholder{color:#9ca3af}
+.field-row{display:flex;gap:12px}
+.field-row .field{flex:1}
+.btn-row{display:flex;gap:10px;margin-top:8px}
+.btn{flex:1;height:44px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-primary{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff}
+.btn-primary:hover{background:linear-gradient(135deg,#1d4ed8,#1e40af);transform:translateY(-1px);box-shadow:0 6px 20px rgba(37,99,235,.35)}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary:disabled{background:#9ca3af;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-ghost{background:#f3f4f6;color:#374151}
+.btn-ghost:hover{background:#e5e7eb}
+.msg{font-size:12px;margin-top:12px;padding:10px 12px;border-radius:8px;display:none}
+.msg.error{display:block;background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+.msg.success{display:block;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}
+.msg.tip{display:block;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe}
+
+.footer-tip{text-align:center;margin-top:18px;font-size:11px;color:rgba(255,255,255,.4)}
+.footer-tip code{background:rgba(255,255,255,.1);padding:1px 6px;border-radius:3px;color:rgba(255,255,255,.6)}
+.hint-list{margin-top:10px;font-size:12px;color:#6b7280;line-height:1.8}
+.hint-list li span{font-weight:600;color:#0f172a}
+
+/* ---------- 忘记密码 ---------- */
+.form-extra{text-align:right;margin-top:6px}
+.forgot-link{font-size:12px;color:#2563eb;cursor:pointer;text-decoration:none;user-select:none}
+.forgot-link:hover{color:#1d4ed8;text-decoration:underline}
+
+/* 模态框遮罩 */
+.modal-mask{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:1000;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-mask.show{opacity:1;pointer-events:auto}
+.modal{background:#fff;border-radius:18px;padding:28px 32px;width:420px;max-width:92vw;box-shadow:0 24px 70px rgba(0,0,0,.45);transform:translateY(12px);transition:transform .2s}
+.modal-mask.show .modal{transform:translateY(0)}
+.modal h3{font-size:17px;color:#0f172a;font-weight:700;margin-bottom:4px}
+.modal .sub{font-size:12px;color:#6b7280;margin-bottom:18px}
+.modal .close{float:right;font-size:22px;color:#9ca3af;cursor:pointer;line-height:1;margin-top:-4px}
+.modal .close:hover{color:#374151}
+
+.field-row-verify{display:flex;gap:10px}
+.field-row-verify .field{flex:1}
+.btn-verify{flex-shrink:0;width:120px;height:42px;border:1.5px solid #e5e7eb;border-radius:10px;background:#f9fafb;color:#374151;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s}
+.btn-verify:hover:not(:disabled){border-color:#60a5fa;color:#2563eb;background:#eff6ff}
+.btn-verify:disabled{color:#9ca3af;cursor:not-allowed;background:#f3f4f6}
+
+@media (max-width:720px){
+  .roles{grid-template-columns:repeat(2,1fr)}
+  .form-card{padding:22px 18px}
+  .header h1{font-size:22px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>零距离 <span>统一工作台登录</span></h1>
+    <p>设计师 · 安装工 · 供应商 · 平台管理员 四端合一入口</p>
+  </div>
+
+  <!-- 角色选择 -->
+  <div class="roles">
+    <div class="role-card admin" data-role="admin" data-path="/admin/" tabindex="0">
+      <div class="icon">🛡</div>
+      <div class="name">平台管理员</div>
+      <div class="desc">商品/订单/财务/纠纷/入驻审核</div>
+      <div class="tag">ADMIN</div>
+    </div>
+    <div class="role-card vendor" data-role="vendor" data-path="/pc/vendor/" tabindex="0">
+      <div class="icon">🧡</div>
+      <div class="name">供应商</div>
+      <div class="desc">商品上架 · 订单发货 · 自营配送</div>
+      <div class="tag">VENDOR</div>
+    </div>
+    <div class="role-card designer" data-role="designer" data-path="/pc/designer/" tabindex="0">
+      <div class="icon">💜</div>
+      <div class="name">设计师</div>
+      <div class="desc">抢单大厅 · 报价选标 · 设计交付</div>
+      <div class="tag">DESIGNER</div>
+    </div>
+    <div class="role-card installer" data-role="installer" data-path="/pc/installer/" tabindex="0">
+      <div class="icon">💚</div>
+      <div class="name">安装师傅</div>
+      <div class="desc">附近找单 · 报价接单 · 完工结算</div>
+      <div class="tag">INSTALLER</div>
+    </div>
+  </div>
+
+  <!-- 登录表单 -->
+  <div class="form-card">
+    <h2 id="form-title">选择角色后登录</h2>
+    <p class="sub" id="form-sub">请先从上方选择你的角色类型</p>
+
+    <div class="field">
+      <label>账号（用户名 / 手机号 / 昵称）</label>
+      <input type="text" id="account" placeholder="请输入账号" autocomplete="username">
+    </div>
+
+    <div class="field">
+      <label>密码</label>
+      <input type="password" id="password" placeholder="请输入密码" autocomplete="current-password">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-login" disabled>登 录</button>
+      <button class="btn btn-ghost" id="btn-test-account">测试账号</button>
+    </div>
+
+    <div class="form-extra">
+      <a class="forgot-link" id="btn-forgot-password">忘记密码？</a>
+    </div>
+
+    <div class="msg" id="msg"></div>
+
+    <div class="hint-list" id="hints" style="display:none">
+      <div><b>🔑 测试账号（dev 模式可用）</b></div>
+      <ul>
+        <li>管理员：<span>13389210520</span> / <span>123456</span>（昵称: 超级管理员）</li>
+        <li>供应商：<span>13900002001</span> / <span>123456</span>（昵称: 上海图文社）</li>
+        <li>设计师：<span>13700003001</span> / <span>123456</span>（昵称: 设计小王）</li>
+        <li>安装工：<span>13600004001</span> / <span>123456</span>（昵称: 安装刘师傅）</li>
+      </ul>
+      <div style="margin-top:8px;font-size:11px;color:#9ca3af">消费者请使用 <code>小程序</code> 或 <code>APP</code> 登录，不走 PC 工作台。</div>
+    </div>
+  </div>
+
+  <div class="footer-tip">
+    后端 API <code>POST /api/auth/login-account</code> · dev 模式可用 <code>/api/auth/dev/set-role</code> 注入测试角色
+  </div>
+</div>
+
+<!-- 忘记密码 模态框 -->
+<div class="modal-mask" id="forgot-modal">
+  <div class="modal">
+    <span class="close" id="forgot-close">×</span>
+    <h3>找回密码</h3>
+    <p class="sub">输入注册手机号，通过验证码重置密码</p>
+
+    <div class="field">
+      <label>手机号</label>
+      <input type="tel" id="forgot-phone" placeholder="请输入 11 位手机号" maxlength="11">
+    </div>
+
+    <div class="field">
+      <label>验证码</label>
+      <div class="field-row-verify">
+        <input type="text" id="forgot-code" placeholder="6 位验证码" maxlength="6">
+        <button type="button" class="btn-verify" id="forgot-send-code">获取验证码</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>新密码（至少 6 位）</label>
+      <input type="password" id="forgot-new-pwd" placeholder="请输入新密码" autocomplete="new-password">
+    </div>
+
+    <div class="field">
+      <label>确认新密码</label>
+      <input type="password" id="forgot-new-pwd2" placeholder="请再次输入" autocomplete="new-password">
+    </div>
+
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-primary" id="forgot-submit">重置密码</button>
+      <button class="btn btn-ghost" id="forgot-cancel">取消</button>
+    </div>
+
+    <div class="msg" id="forgot-msg"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const cards = document.querySelectorAll('.role-card');
+  const btnLogin = document.getElementById('btn-login');
+  const btnTest = document.getElementById('btn-test-account');
+  const title = document.getElementById('form-title');
+  const sub = document.getElementById('form-sub');
+  const msgEl = document.getElementById('msg');
+  const hints = document.getElementById('hints');
+
+  let selectedRole = null;
+  let selectedPath = null;
+
+  // 角色选择
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      cards.forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      selectedRole = card.dataset.role;
+      selectedPath = card.dataset.path;
+      title.textContent = card.querySelector('.name').textContent + ' 登录';
+      const desc = card.querySelector('.desc').textContent;
+      const roleLabel = {admin:'平台管理员',vendor:'供应商',designer:'设计师',installer:'安装师傅'}[selectedRole];
+      sub.innerHTML = '即将进入 <b>' + roleLabel + '</b> 工作台 — ' + desc;
+      btnLogin.disabled = false;
+      msgEl.className = 'msg';
+      msgEl.textContent = '';
+    });
+  });
+
+  // 显示测试账号提示
+  btnTest.addEventListener('click', () => {
+    hints.style.display = hints.style.display === 'none' ? 'block' : 'none';
+  });
+
+  // 登录
+  btnLogin.addEventListener('click', async () => {
+    msgEl.className = 'msg';
+    msgEl.textContent = '';
+    const account = document.getElementById('account').value.trim();
+    const password = document.getElementById('password').value;
+
+    if (!account || !password) {
+      msgEl.className = 'msg error';
+      msgEl.textContent = '请输入账号和密码';
+      return;
+    }
+
+    btnLogin.disabled = true;
+    btnLogin.textContent = '登录中…';
+
+    try {
+      const resp = await fetch('/api/auth/login-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account, password }),
+      });
+      const data = await resp.json();
+
+      if (resp.ok && data.code === 0) {
+        // 登录成功
+        const user = data.data.user;
+        const token = data.data.token;
+
+        // 保存 token + 基本信息到 localStorage
+        localStorage.setItem('ljl_token', token);
+        localStorage.setItem('ljl_user', JSON.stringify({
+          id: user.id,
+          role: user.role,
+          nickname: user.nickname || user.phone,
+        }));
+
+        // 校验角色匹配
+        if (selectedRole === 'consumer') {
+          msgEl.className = 'msg tip';
+          msgEl.textContent = '消费者端请使用小程序或 APP 登录，PC 工作台不支持';
+          btnLogin.disabled = false;
+          btnLogin.textContent = '登 录';
+          return;
+        }
+        if (selectedRole !== user.role && selectedRole !== 'admin') {
+          // admin 可以进任意工作台；其他角色必须精确匹配
+          // 但 vendor 进入 admin 会被 admin 工作台自己再校验
+          // 这里做友好提示，不强制拦截
+          console.warn('角色不匹配：选择了', selectedRole, '实际是', user.role);
+        }
+
+        msgEl.className = 'msg success';
+        msgEl.textContent = '登录成功，正在跳转…';
+
+        // 跳转到对应工作台
+        const targetPath = (user.role === 'admin' ? '/admin/' : selectedPath) || '/admin/';
+        setTimeout(() => {
+          window.location.href = targetPath;
+        }, 500);
+      } else {
+        msgEl.className = 'msg error';
+        msgEl.textContent = data.msg || '登录失败，请检查账号密码';
+        btnLogin.disabled = false;
+        btnLogin.textContent = '登 录';
+      }
+    } catch (e) {
+      msgEl.className = 'msg error';
+      msgEl.textContent = '网络错误：' + e.message;
+      btnLogin.disabled = false;
+      btnLogin.textContent = '登 录';
+    }
+  });
+
+  // Enter 键触发登录
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !btnLogin.disabled) {
+      btnLogin.click();
+    }
+  });
+
+  // 已有 token 自动判断是否已登录
+  const existingToken = localStorage.getItem('ljl_token');
+  if (existingToken) {
+    try {
+      const u = JSON.parse(localStorage.getItem('ljl_user') || 'null');
+      if (u && u.role) {
+        // 已登录 → 直接进对应工作台（或回到选角色界面）
+        // 这里只做轻量提示，不强制自动跳转（防止用户想换角色）
+        // 保留现状，让用户手动选角色重新登录或跳
+      }
+    } catch {}
+  }
+
+  // ============================================================
+  // 忘记密码 — 完整流程
+  // ============================================================
+  const forgotModal = document.getElementById('forgot-modal');
+  const forgotClose = document.getElementById('forgot-close');
+  const forgotCancel = document.getElementById('forgot-cancel');
+  const forgotBtn = document.getElementById('btn-forgot-password');
+  const forgotMsg = document.getElementById('forgot-msg');
+  const forgotPhone = document.getElementById('forgot-phone');
+  const forgotCode = document.getElementById('forgot-code');
+  const forgotNewPwd = document.getElementById('forgot-new-pwd');
+  const forgotNewPwd2 = document.getElementById('forgot-new-pwd2');
+  const forgotSend = document.getElementById('forgot-send-code');
+  const forgotSubmit = document.getElementById('forgot-submit');
+
+  function showForgotMsg(type, text) {
+    forgotMsg.className = 'msg ' + (type || '');
+    forgotMsg.textContent = text || '';
+  }
+  function openForgot() {
+    forgotModal.classList.add('show');
+    forgotMsg.className = 'msg'; forgotMsg.textContent = '';
+  }
+  function closeForgot() {
+    forgotModal.classList.remove('show');
+  }
+  forgotBtn.addEventListener('click', openForgot);
+  forgotClose.addEventListener('click', closeForgot);
+  forgotCancel.addEventListener('click', closeForgot);
+  forgotModal.addEventListener('click', (e) => { if (e.target === forgotModal) closeForgot(); });
+
+  // 获取验证码（60s 倒计时）
+  let countdown = 0, countdownTimer = null;
+  forgotSend.addEventListener('click', async () => {
+    const phone = forgotPhone.value.trim();
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      showForgotMsg('error', '请输入正确的 11 位手机号');
+      forgotPhone.focus(); return;
+    }
+    forgotSend.disabled = true;
+    try {
+      const resp = await fetch('/api/auth/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, purpose: 'reset_password' }),
+      });
+      const data = await resp.json();
+      if (resp.ok && data.code === 0) {
+        showForgotMsg('success', '验证码已发送（dev 模式 MOCK_CODE=123456）');
+        // 60s 倒计时
+        countdown = 60;
+        forgotSend.textContent = countdown + 's 后重发';
+        countdownTimer = setInterval(() => {
+          countdown--;
+          if (countdown <= 0) {
+            clearInterval(countdownTimer);
+            forgotSend.disabled = false;
+            forgotSend.textContent = '获取验证码';
+          } else {
+            forgotSend.textContent = countdown + 's 后重发';
+          }
+        }, 1000);
+      } else {
+        showForgotMsg('error', data.msg || '发送失败');
+        forgotSend.disabled = false;
+      }
+    } catch (e) {
+      showForgotMsg('error', '网络错误：' + e.message);
+      forgotSend.disabled = false;
+    }
+  });
+
+  // 提交重置密码
+  forgotSubmit.addEventListener('click', async () => {
+    showForgotMsg('', '');
+    const phone = forgotPhone.value.trim();
+    const code = forgotCode.value.trim();
+    const pwd1 = forgotNewPwd.value;
+    const pwd2 = forgotNewPwd2.value;
+
+    if (!/^1[3-9]\d{9}$/.test(phone)) return showForgotMsg('error', '请输入正确的 11 位手机号');
+    if (!code || code.length < 4) return showForgotMsg('error', '请输入验证码');
+    if (!pwd1 || pwd1.length < 6) return showForgotMsg('error', '新密码至少 6 位');
+    if (pwd1 !== pwd2) return showForgotMsg('error', '两次输入的密码不一致');
+
+    forgotSubmit.disabled = true;
+    forgotSubmit.textContent = '提交中…';
+    try {
+      const resp = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, code, newPassword: pwd1 }),
+      });
+      const data = await resp.json();
+      if (resp.ok && data.code === 0) {
+        showForgotMsg('success', '密码重置成功！即将回到登录…');
+        // 清空账号密码框，方便用户在主表单直接登录
+        document.getElementById('account').value = phone;
+        forgotPhone.value = ''; forgotCode.value = '';
+        forgotNewPwd.value = ''; forgotNewPwd2.value = '';
+        setTimeout(closeForgot, 1200);
+      } else {
+        showForgotMsg('error', data.msg || '重置失败');
+      }
+    } catch (e) {
+      showForgotMsg('error', '网络错误：' + e.message);
+    }
+    forgotSubmit.disabled = false;
+    forgotSubmit.textContent = '重置密码';
+  });
+})();
+</script>
+</body>
+</html>
