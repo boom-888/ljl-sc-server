@@ -1384,7 +1384,6 @@ export async function adminStatsORM() {
     const oGMVRow = await ds.createQueryBuilder(OrderEntity, 'o').select('SUM(o.totalAmount)', 's').getRawOne();
     const oGMV = Number((oGMVRow as any)?.s ?? 0);
     const t2 = Date.now();
-    console.log(`[stats] 基础计数 done in ${t2 - t0}ms (u=${t1-t0}ms)`);
     // Top 分类 — sqljs 不支持 ANY_VALUE，改成 COALESCE(l1.name, '')
     const topCatRows: any[] = await ds
       .createQueryBuilder(ProductEntity, 'p')
@@ -1396,14 +1395,10 @@ export async function adminStatsORM() {
       .orderBy('cnt', 'DESC')
       .limit(5)
       .getRawMany();
-    const t3 = Date.now();
-    console.log(`[stats] topCat done in ${t3 - t2}ms`);
     const topCategories = topCatRows.map((r) => ({ name: r.catName, value: Number(r.cnt) }));
     const topProducts = (
       await ds.getRepository(ProductEntity).find({ order: { sales: 'DESC' }, take: 3 })
     ).map((p) => ({ name: p.name, sales: p.sales, gmv: Math.round(toNum(p.price) * p.sales) }));
-    const t4 = Date.now();
-    console.log(`[stats] topProducts done in ${t4 - t3}ms, TOTAL ${t4 - t0}ms`);
     return {
       overview: {
         totalUsers: uCnt,
