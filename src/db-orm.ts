@@ -1371,24 +1371,24 @@ export async function cancelDemandORM(userId: number, id: number) {
 export async function adminStatsORM() {
   const ds = getDataSource();
   if (ds && ds.isInitialized) {
-    const [uCnt, uActive, pCnt, pEnabled, cCnt, bCnt, oCnt, oGMV] = await Promise.all([
-      ds.getRepository(UserEntity).count(),
-      ds.getRepository(UserEntity).count({ where: { status: 1 } }),
-      ds.getRepository(ProductEntity).count(),
-      ds.getRepository(ProductEntity).count({ where: { status: 1 } }),
-      ds.getRepository(CategoryEntity).count(),
-      ds.getRepository(BannerEntity).count(),
-      ds.getRepository(OrderEntity).count(),
-      ds
-        .createQueryBuilder(OrderEntity, 'o')
-        .select('SUM(o.totalAmount)', 's')
-        .getRawOne()
-        .then((r: any) => Number(r?.s ?? 0)),
-    ]);
-    // Top 分类（按商品数，用 ANY_VALUE 兼容 ONLY_FULL_GROUP_BY）
+    const t0 = Date.now();
+    // sqljs 单线程，Promise.all 可能产生锁竞争，改为串行
+    const uCnt = await ds.getRepository(UserEntity).count();
+    const t1 = Date.now();
+    const uActive = await ds.getRepository(UserEntity).count({ where: { status: 1 } });
+    const pCnt = await ds.getRepository(ProductEntity).count();
+    const pEnabled = await ds.getRepository(ProductEntity).count({ where: { status: 1 } });
+    const cCnt = await ds.getRepository(CategoryEntity).count();
+    const bCnt = await ds.getRepository(BannerEntity).count();
+    const oCnt = await ds.getRepository(OrderEntity).count();
+    const oGMVRow = await ds.createQueryBuilder(OrderEntity, 'o').select('SUM(o.totalAmount)', 's').getRawOne();
+    const oGMV = Number((oGMVRow as any)?.s ?? 0);
+    const t2 = Date.now();
+    console.log(`[stats] 基础计数 done in ${t2 - t0}ms (u=${t1-t0}ms)`);
+    // Top 分类 — sqljs 不支持 ANY_VALUE，改成 COALESCE(l1.name, '')
     const topCatRows: any[] = await ds
       .createQueryBuilder(ProductEntity, 'p')
-      .select('ANY_VALUE(l1.name)', 'catName')
+      .select('COALESCE(l1.name, \"\")', 'catName')
       .addSelect('COUNT(p.id)', 'cnt')
       .innerJoin(CategoryEntity, 'c', 'c.id = p.categoryId')
       .innerJoin(CategoryEntity, 'l1', 'l1.id = COALESCE(c.parentId, c.id)')
@@ -1396,11 +1396,14 @@ export async function adminStatsORM() {
       .orderBy('cnt', 'DESC')
       .limit(5)
       .getRawMany();
+    const t3 = Date.now();
+    console.log(`[stats] topCat done in ${t3 - t2}ms`);
     const topCategories = topCatRows.map((r) => ({ name: r.catName, value: Number(r.cnt) }));
-    // Top 商品（按 sales）
     const topProducts = (
       await ds.getRepository(ProductEntity).find({ order: { sales: 'DESC' }, take: 3 })
     ).map((p) => ({ name: p.name, sales: p.sales, gmv: Math.round(toNum(p.price) * p.sales) }));
+    const t4 = Date.now();
+    console.log(`[stats] topProducts done in ${t4 - t3}ms, TOTAL ${t4 - t0}ms`);
     return {
       overview: {
         totalUsers: uCnt,

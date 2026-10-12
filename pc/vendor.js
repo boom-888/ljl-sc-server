@@ -580,11 +580,10 @@
       <div class="page-card">
         <h2>店铺资料</h2>
         <div v-if="data" style="line-height:2">
-          <div>店铺名：{{ data.shopName || data.storeName || '-' }}</div>
-          <div>联系人：{{ data.contactName || '-' }}</div>
+          <div>店铺名：{{ data.nickname || data.shopName || data.storeName || '-' }}</div>
           <div>联系电话：{{ data.phone || '-' }}</div>
-          <div>地址：{{ data.address || '-' }}</div>
-          <div>入驻时间：{{ data.createdAt || '-' }}</div>
+          <div>服务区域：{{ (data.serviceAreas || []).map(s => (s.province||'') + (s.city||'') + (s.district||'')).join('、') || '-' }}</div>
+          <div>累计订单：{{ data.stats?.totalOrders ?? 0 }} 单 · 商品数 {{ data.stats?.totalProducts ?? 0 }}</div>
           <div style="margin-top:12px;color:#9ca3af;font-size:12px">更多编辑功能开发中…</div>
         </div>
         <div v-else class="loading">加载中…</div>
