@@ -1,12 +1,34 @@
-node_modules
-dist
-.env
-.env.*
-.git
+# 本地环境 / 开发工具（不进镜像）
+tools/
+data/
+tmp/
+__tests__/
+
+# Node 依赖层缓存
+node_modules/
+npm-debug.log*
+
+# 数据库文件
+*.sqlite
+*.sqlite-journal
+
+# Git
+.git/
 .gitignore
-*.log
-oss
-scripts/_*
-*.md
+.github/
+
+# OS 垃圾
 .DS_Store
-coverage
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# 本地 SSH key（安全！）
+.ssh/
+
+# PowerShell 临时脚本（刚才 git push 用的）
+push-to-github.ps1
+*.bundle
