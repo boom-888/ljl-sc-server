@@ -25,6 +25,9 @@ coverage/
 *.sqlite
 *.sqlite-journal
 
+# 本地 MySQL 工具目录（约 250MB，部署时用 docker-compose 代替）
+tools/mysql/
+
 # 临时脚本
 tmp-*.ts
 tmp-*.js

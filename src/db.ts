@@ -1345,8 +1345,8 @@ export async function seed() {
       const DesignerProfileEntity = sprint5.DesignerProfileEntity;
       try {
         // 真实 seed id（50000 偏移）: installer=50014 (13600004001), designers=50012 (13700003001)/50013 (13700003002)
-        await ds.createQueryBuilder().delete().from(InstallerProfileEntity).where('userId IN (?)', [[50014]]).execute();
-        await ds.createQueryBuilder().delete().from(DesignerProfileEntity).where('userId IN (?)', [[50012, 50013]]).execute();
+        await ds.createQueryBuilder().delete().from(InstallerProfileEntity).where('userId IN (:ids)', { ids: [50014] }).execute();
+        await ds.createQueryBuilder().delete().from(DesignerProfileEntity).where('userId IN (:ids)', { ids: [50012, 50013] }).execute();
         await ds.getRepository(InstallerProfileEntity).save([
           { userId: 50014, realName: '安装刘师傅', phone: '13600004001', verified: 1, verifiedAt: new Date() },
         ]);

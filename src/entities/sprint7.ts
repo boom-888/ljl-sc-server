@@ -42,19 +42,7 @@ export class DesignOrderEntity {
   @Column({ type: 'decimal', precision: 5, scale: 4, default: 0.15 })
   commissionRate: number = 0.15;
 
-  @Column({
-    type: 'varchar', length: 32,
-    enum: [
-      'accepted',
-      'designing',
-      'revision_requested',
-      'reviewed',
-      'completed',
-      'cancelled',
-      'disputed',
-    ],
-    default: 'accepted',
-  })
+  @Column({ type: 'varchar', length: 32, default: 'accepted' })
   status: string = 'accepted';
 
   @Column({ type: 'int', default: 0 })
@@ -153,11 +141,7 @@ export class DesignDeliveryEntity {
     fileSize?: number;
   }[] = [];
 
-  @Column({
-    type: 'varchar', length: 32,
-    enum: ['pending_upload', 'uploaded', 'accepted', 'rejected'],
-    default: 'pending_upload',
-  })
+  @Column({ type: 'varchar', length: 32, default: 'pending_upload' })
   status: string = 'pending_upload';
 
   @Column({ type: 'tinyint', default: 0 })
