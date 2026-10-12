@@ -29,7 +29,50 @@
       const loading = ref(false);
       const activeTab = ref('all'); // all / on_sale / out_of_stock
       const stockDialog = reactive({ show: false, id: null, name: '', delta: 10, stock: null, mode: 'delta' });
-      const addDialog = reactive({ show: false, form: { name: '', price: '', stock: 0, categoryId: null, detail: '', status: 1 } });
+      const addDialog = reactive({
+        show: false,
+        base: 99,               // 基础价（必填）
+        form: {
+          name: '', cover: '', price: 99, stock: 10, categoryId: null,
+          detail: '', status: 1, productType: 'ready',
+        },
+        materials: [            // 材质行
+          { key: 'aluminum', name: '铝合金（1.5mm）', surcharge: 0 },
+        ],
+        crafts: [               // 工艺列
+          { key: 'plain', name: '光面', surcharge: 0 },
+        ],
+        useComboPrices: false,  // 是否启用组合定价覆盖
+      });
+
+      // 实时计算：基础价 + material surcharge + craft surcharge，或 comboPrices 覆盖
+      function computeComboPrice(mKey, cKey) {
+        if (addDialog.useComboPrices) {
+          return addDialog.base; // 组合模式下 base 显示为"参考价"，矩阵格单独填
+        }
+        const m = addDialog.materials.find(x => x.key === mKey);
+        const c = addDialog.crafts.find(x => x.key === cKey);
+        return addDialog.base + (m?.surcharge ?? 0) + (c?.surcharge ?? 0);
+      }
+
+      function addMaterial() {
+        const idx = addDialog.materials.length + 1;
+        addDialog.materials.push({
+          key: 'm' + idx, name: '新材质 ' + idx, surcharge: 0,
+        });
+      }
+      function removeMaterial(i) {
+        if (addDialog.materials.length > 1) addDialog.materials.splice(i, 1);
+      }
+      function addCraft() {
+        const idx = addDialog.crafts.length + 1;
+        addDialog.crafts.push({
+          key: 'c' + idx, name: '新工艺 ' + idx, surcharge: 0,
+        });
+      }
+      function removeCraft(i) {
+        if (addDialog.crafts.length > 1) addDialog.crafts.splice(i, 1);
+      }
 
       const filtered = computed(() => {
         if (activeTab.value === 'on_sale') return list.value.filter(x => x.status === 'on_sale' || x.status === 1);
@@ -71,26 +114,53 @@
       }
 
       function openAdd() {
-        addDialog.form = { name: '', price: '', stock: 10, categoryId: null, detail: '', status: 1 };
+        addDialog.base = 99;
+        addDialog.form = {
+          name: '', cover: '', price: 99, stock: 10, categoryId: null,
+          detail: '', status: 1, productType: 'ready',
+        };
+        // 给默认 2 材质 × 2 工艺示例，方便供应商直观感受
+        addDialog.materials = [
+          { key: 'aluminum', name: '铝合金（1.5mm）', surcharge: 0 },
+          { key: 'stainless', name: '不锈钢（1.2mm）', surcharge: 45 },
+        ];
+        addDialog.crafts = [
+          { key: 'plain', name: '光面', surcharge: 0 },
+          { key: 'brushed', name: '拉丝', surcharge: 25 },
+        ];
+        addDialog.useComboPrices = false;
         addDialog.show = true;
       }
 
       async function submitAdd() {
         const f = addDialog.form;
         if (!f.name.trim()) { window.__toast('warning', '商品名称必填'); return; }
-        if (f.price === '' || Number(f.price) < 0) { window.__toast('warning', '价格无效'); return; }
+        if (!addDialog.base || addDialog.base <= 0) { window.__toast('warning', '基础价必须大于 0'); return; }
         try {
-          await window.__api.post('/vendor/products', {
-            name: f.name.trim(), price: Number(f.price), stock: Number(f.stock || 0),
-            categoryId: f.categoryId, detail: f.detail, status: f.status === 1 ? 'on' : 'off',
-          });
-          window.__toast('success', '商品已创建');
+          const payload = {
+            name: f.name.trim(),
+            price: Number(addDialog.base),
+            stock: Number(f.stock || 0),
+            categoryId: f.categoryId || null,
+            detail: f.detail,
+            status: f.status === 1 ? 'on' : 'off',
+            productType: f.productType,
+            materials: addDialog.materials,
+            crafts: addDialog.crafts,
+            // 启用组合定价时，把 base 作为参考价；不启用则 comboPrices 不传
+          };
+          await window.__api.post('/vendor/products', payload);
+          window.__toast('success', '商品已创建（含多材质/多工艺配置）');
           addDialog.show = false;
           await load();
         } catch {}
       }
 
-      return { list, loading, activeTab, filtered, statusMap, stockDialog, addDialog, load, openStock, submitStock, openAdd, submitAdd };
+      return {
+        list, loading, activeTab, filtered, statusMap, stockDialog, addDialog,
+        load, openStock, submitStock, openAdd, submitAdd,
+        computeComboPrice, addMaterial, removeMaterial, addCraft, removeCraft,
+      };
     },
     mounted() { this.load(); },
     template: `
@@ -155,28 +225,105 @@
         </template>
       </el-dialog>
 
-      <el-dialog v-model="addDialog.show" title="新增商品" width="520px">
+      <el-dialog v-model="addDialog.show" title="新增商品 · 多材质多工艺定价" width="820px">
         <el-form label-width="90px">
-          <el-form-item label="商品名称"><el-input v-model="addDialog.form.name" placeholder="必填" /></el-form-item>
-          <el-form-item label="价格">
-            <el-input-number v-model="addDialog.form.price" :min="0" :precision="2" :step="10" style="width:180px" />
-          </el-form-item>
-          <el-form-item label="库存">
-            <el-input-number v-model="addDialog.form.stock" :min="0" :step="10" style="width:180px" />
-          </el-form-item>
-          <el-form-item label="分类ID">
-            <el-input-number v-model="addDialog.form.categoryId" :min="1" placeholder="选填" style="width:180px" />
-          </el-form-item>
-          <el-form-item label="状态">
-            <el-switch v-model="addDialog.form.status" :active-value="1" :inactive-value="0" active-text="在售" inactive-text="已下架" />
-          </el-form-item>
-          <el-form-item label="商品详情">
-            <el-input v-model="addDialog.form.detail" type="textarea" :rows="2" placeholder="选填" />
-          </el-form-item>
+          <div style="display:flex;gap:16px">
+            <div style="flex:1;display:flex;flex-direction:column;gap:12px">
+              <el-form-item label="商品名称"><el-input v-model="addDialog.form.name" placeholder="必填，如发光字招牌" /></el-form-item>
+              <el-form-item label="基础价">
+                <el-input-number v-model="addDialog.base" :min="0" :precision="2" :step="10" style="width:180px" />
+                <span style="margin-left:8px;color:#888;font-size:12px">每款 SKU 的基准（+材质/工艺附加）</span>
+              </el-form-item>
+              <el-form-item label="库存">
+                <el-input-number v-model="addDialog.form.stock" :min="0" :step="10" style="width:180px" />
+              </el-form-item>
+              <el-form-item label="分类ID">
+                <el-input-number v-model="addDialog.form.categoryId" :min="1" placeholder="选填" style="width:180px" />
+              </el-form-item>
+              <el-form-item label="状态">
+                <el-switch v-model="addDialog.form.status" :active-value="1" :inactive-value="0" active-text="在售" inactive-text="已下架" />
+              </el-form-item>
+              <el-form-item label="商品详情">
+                <el-input v-model="addDialog.form.detail" type="textarea" :rows="2" placeholder="选填" />
+              </el-form-item>
+            </div>
+          </div>
         </el-form>
+
+        <!-- ========== 多材质编辑器 ========== -->
+        <div style="margin-top:10px;border-top:1px solid #eee;padding-top:14px">
+          <div style="font-weight:600;margin-bottom:8px">📦 材质选项（行） — 可增减附加价</div>
+          <el-table :data="addDialog.materials" size="small" border>
+            <el-table-column label="#" width="40" type="index" />
+            <el-table-column label="材质 Key" width="140">
+              <template #default="{row}"><el-input v-model="row.key" size="small" /></template>
+            </el-table-column>
+            <el-table-column label="名称">
+              <template #default="{row}"><el-input v-model="row.name" size="small" /></template>
+            </el-table-column>
+            <el-table-column label="附加价(元)" width="130" align="right">
+              <template #default="{row}"><el-input-number v-model="row.surcharge" size="small" :step="10" :precision="2" style="width:100px" /></template>
+            </el-table-column>
+            <el-table-column label="操作" width="60" align="center">
+              <template #default="{ $index }">
+                <el-button size="small" link type="danger" @click="removeMaterial($index)" :disabled="addDialog.materials.length<=1">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-button size="small" @click="addMaterial" style="margin-top:6px">+ 添加材质</el-button>
+        </div>
+
+        <!-- ========== 多工艺编辑器 ========== -->
+        <div style="margin-top:16px;border-top:1px solid #eee;padding-top:14px">
+          <div style="font-weight:600;margin-bottom:8px">🎨 工艺选项（列） — 可增减附加价</div>
+          <el-table :data="addDialog.crafts" size="small" border>
+            <el-table-column label="#" width="40" type="index" />
+            <el-table-column label="工艺 Key" width="140">
+              <template #default="{row}"><el-input v-model="row.key" size="small" /></template>
+            </el-table-column>
+            <el-table-column label="名称">
+              <template #default="{row}"><el-input v-model="row.name" size="small" /></template>
+            </el-table-column>
+            <el-table-column label="附加价(元)" width="130" align="right">
+              <template #default="{row}"><el-input-number v-model="row.surcharge" size="small" :step="10" :precision="2" style="width:100px" /></template>
+            </el-table-column>
+            <el-table-column label="操作" width="60" align="center">
+              <template #default="{ $index }">
+                <el-button size="small" link type="danger" @click="removeCraft($index)" :disabled="addDialog.crafts.length<=1">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-button size="small" @click="addCraft" style="margin-top:6px">+ 添加工艺</el-button>
+        </div>
+
+        <!-- ========== 实时价格矩阵预览 ========== -->
+        <div style="margin-top:18px;border-top:2px solid #409eff;padding-top:14px;background:#fafbfc;border-radius:6px">
+          <div style="font-weight:600;margin-bottom:10px;color:#409eff">💰 实时价格矩阵（基础价 ¥{{ addDialog.base }} + 材质附加 + 工艺附加）</div>
+          <el-table :data="addDialog.materials" size="small" border :header-cell-style="{background:'#ecf5ff'}">
+            <el-table-column label="材质 \\ 工艺" width="180" fixed>
+              <template #default="{row}">
+                <b>{{ row.name }}</b>
+                <div style="font-size:11px;color:#888">基础 {{ addDialog.base }} + 材质 {{ row.surcharge >= 0 ? '+' : '' }}{{ row.surcharge }}</div>
+              </template>
+            </el-table-column>
+            <el-table-column
+              v-for="c in addDialog.crafts"
+              :key="c.key"
+              :label="c.name + ' (' + (c.surcharge>=0?'+':'') + c.surcharge + ')'"
+              align="center"
+            >
+              <template #default="{row}">
+                <el-tag type="success" effect="light" size="default" style="font-size:14px;font-weight:600">
+                  ¥{{ computeComboPrice(row.key, c.key).toFixed(2) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
         <template #footer>
           <el-button @click="addDialog.show = false">取消</el-button>
-          <el-button type="primary" @click="submitAdd">创建</el-button>
+          <el-button type="primary" @click="submitAdd">创建商品</el-button>
         </template>
       </el-dialog>
     `,

@@ -321,6 +321,28 @@ export class ProductEntity {
   @Column({ type: 'tinyint', default: 0 })
   needsDesignUpload: number = 0;
 
+  /** 多材质选项（供应商配置可售材质，前端 SKU 级价格）
+   *  例：[ { key:'aluminum', name:'铝合金（1.5mm）', surcharge:0 },
+   *       { key:'stainless', name:'不锈钢（1.2mm）', surcharge:30 },
+   *       { key:'acrylic',   name:'亚克力 5mm', surcharge:-10 } ]
+   *  surcharge 相对基准价的增减（元），负数表示便宜 */
+  @Column({ type: 'simple-json', nullable: true })
+  materials?: { key: string; name: string; surcharge: number }[];
+
+  /** 多工艺选项（如表面处理/印刷方式）
+   *  例：[ { key:'plain',   name:'光面', surcharge:0 },
+   *       { key:'brushed', name:'拉丝', surcharge:25 },
+   *       { key:'mirror',  name:'镜面抛光', surcharge:40 } ] */
+  @Column({ type: 'simple-json', nullable: true })
+  crafts?: { key: string; name: string; surcharge: number }[];
+
+  /** 组合定价（可选，覆盖 materials[i].surcharge + crafts[j].surcharge 简单加总）
+   *  例：[ { material:'aluminum', craft:'brushed', price: 199 },
+   *       { material:'stainless', craft:'mirror',  price: 348 } ]
+   *  空则用"基准价 + material surcharge + craft surcharge"计算 */
+  @Column({ type: 'simple-json', nullable: true })
+  comboPrices?: { material: string; craft: string; price: number }[];
+
   // ✅ Relations
   @ManyToOne(() => CategoryEntity, { createForeignKeyConstraints: false })
   @JoinColumn({ name: 'categoryId' })

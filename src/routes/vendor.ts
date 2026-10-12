@@ -449,7 +449,8 @@ router.get('/products/:id', requireAuth, requireVendor, async (req: AuthedReques
 router.post('/products', requireAuth, requireVendor, async (req: AuthedRequest, res) => {
   const userId = req.userId!;
   const { name, cover, images, price, stock, categoryId, tags, detail, status,
-    productType, designFee, printFee, needsDesignUpload } = req.body as any;
+    productType, designFee, printFee, needsDesignUpload,
+    materials, crafts, comboPrices } = req.body as any;
 
   if (!name?.trim()) return badRequest(res, '商品名称必填');
   if (price == null || price < 0) return badRequest(res, '价格无效');
@@ -460,7 +461,6 @@ router.post('/products', requireAuth, requireVendor, async (req: AuthedRequest, 
   try {
     const { ProductEntity } = await import('../entities/index');
     const repo = ds.getRepository(ProductEntity);
-    // productType 归一化：非法值 fallback ready
     const validType = productType === 'custom' || productType === 'combo' ? productType : 'ready';
     const product = repo.create({
       name: name.trim(), cover: cover || '', images: images || [],
@@ -472,10 +472,16 @@ router.post('/products', requireAuth, requireVendor, async (req: AuthedRequest, 
       productType: validType,
       designFee: validType === 'combo' ? (designFee != null ? Number(designFee) : null) : null,
       printFee: printFee != null ? Number(printFee) : null,
-      // custom 默认 needsDesignUpload=1；combo 默认 0；ready 默认 0
       needsDesignUpload: validType === 'custom'
         ? 1
         : (needsDesignUpload ? 1 : 0),
+      // 多材质/多工艺/组合定价（全可选，数组要校验格式）
+      materials: Array.isArray(materials) && materials.every((m: any) => m.key && m.name && typeof m.surcharge === 'number')
+        ? materials : null,
+      crafts: Array.isArray(crafts) && crafts.every((c: any) => c.key && c.name && typeof c.surcharge === 'number')
+        ? crafts : null,
+      comboPrices: Array.isArray(comboPrices) && comboPrices.every((c: any) => c.material && c.craft && typeof c.price === 'number')
+        ? comboPrices : null,
     });
     const saved = await repo.save(product);
     ok(res, { id: String(saved.id) }, '商品已创建');
