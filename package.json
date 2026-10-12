@@ -1,7 +1,7 @@
 {
   "name": "ljl-mall-server",
   "version": "0.1.0",
-  "description": "零距离广告商城 · Sprint 1 后端（Auth + Home 13 endpoint）",
+  "description": "LJL Mall 四端完整后端（平台/供应商/设计师/安装师傅）· Node.js + Express + TypeORM + MySQL · Vue3 CDN PC 工作台",
   "private": true,
   "scripts": {
     "start": "tsx src/index.ts",

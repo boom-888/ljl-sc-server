@@ -1,31 +1,60 @@
+# ═══════════════════════════════════════════════════════════════
+# LJL Mall — 四端完整后端
+# 一键启动：docker compose up -d
+# MySQL 8.4 + Express(TypeScript/TypeORM) + Vue3 CDN 工作台
+# 端口：3001(app) / 3306(mysql)
+# ═══════════════════════════════════════════════════════════════
 services:
+  # —— 数据库：MySQL 8.4 LTS ——
   mysql:
     image: mysql:8.4
+    container_name: ljl-mysql
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: ljl_sc
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
     ports:
       - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # —— 应用：用项目 Dockerfile 构建（包含前端 pc/ workspace/ admin/）——
   app:
-    image: node:20
-    working_dir: /app
-    command: npx tsx watch src/index.ts
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ljl-sc-server:latest
+    container_name: ljl-app
+    restart: unless-stopped
     ports:
       - "3001:3001"
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy   # MySQL 健康检查过才启动 app
     environment:
+      NODE_ENV: production
+      PORT: 3001
+      JWT_SECRET: vm-ljl-sc-secret-2026-safe
+      CORS_ORIGIN: "*"
+      # MySQL 连接（容器内服务名 mysql，不是 localhost）
       MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
       MYSQL_PASSWORD: root
       MYSQL_DATABASE: ljl_sc
-      JWT_SECRET: vm-ljl-sc-secret-2026-safe
-      NODE_ENV: development
+      # 禁用 sqljs fallback — 生产强制 MySQL
+      DB_MODE: ""
     volumes:
-      - ./src:/app/src
-      - ./node_modules:/app/node_modules
+      # 允许 Express 托管的 data/ 目录持久化（前端上传图片等）
+      - app-data:/app/data
 
 volumes:
   mysql-data:
+  app-data:
